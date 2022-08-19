@@ -1,0 +1,290 @@
+---
+title: "General_Tasks_Group_28"
+author: "Kurz Yannick Peter, QinYuan Fan, Sudhin Poduval, TianXing Li, ZiXuan Liu"
+group: "Gruppe 28"
+date: "2019/8/25" 
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Aufgabe 1
+
+Die Logistik spielt in der Produktentwicklung der Automobilindustrie eine immer wichtigere Rolle. Vom Lieferanten hergestellte Teile müssen zuerst an den OEM geliefert werden, bevor sie installiert werden können. Was auf den ersten Blick logisch erscheint, sollte für eine professionelle Anwendung genauer analysiert werden. Legen Sie deshalb eine Verteilung für den Logistikverzug der Komponente „K7" an. Verwenden Sie das Produktionsdatum aus dem Datensatz „Komponente_K7.csv" und das Wareneingangsdatum aus „Logistics_delay_K7.csv" ". Sie können davon ausgehen, dass der Hersteller die Ware zum Produktionsdatum liefert. Legen Sie für das Modelldesign in R einen neuen Datensatz" Logistikverzögerung "an, der die erforderlichen Informationen aus beiden Datensätzen enthält.
+
+*a. Wie ist der Logistikverzug verteilt? Begründen Sie Ihre Auswahl und stellen Sie Ihre Vorgehensweise kurz dar.*
+
+*b. Wie viel Zeit vergeht mindestens/höchstens zwischen Warenausgang und Wareneingang?*
+
+*c. Bestimmen Sie den Mittelwert des Logistikverzugs.*
+
+*d. Stellen Sie die Verteilung in geeigneter Weise dar.*
+
+***
+
+Zum Lösen der Aufgaben müssen wir die vorliegenden Daten geeignet aufbereiten und die notwendigen Datensätze zusammenfügen. Zuvor werden die benötigten Bibliotheken eingebunden.
+```{r message = FALSE, warning = FALSE }
+if(!require(tidyverse)) {
+  install.packages("tidyverse")
+  require(tidyverse)
+}
+
+if(!require(stringr)) {
+  install.packages("stringr")
+  require(stringr)
+}
+
+if(!require(dplyr)) {
+  install.packages("dplyr")
+  require(dplyr)
+}
+
+if(!require(magrittr)) {
+  install.packages("magrittr")
+  require(magrittr)
+}
+
+```
+
+Zuerst Pfade setzen.
+```{r}
+Logistikverzug_file <- list.files(path = "Data/Logistikverzug/")
+Logistikverzug_path <- file.path("Data/Logistikverzug", Logistikverzug_file)
+```
+
+
+Als nächstes werden die benötigten Datensätze (Komponente_K7;Logistikverzug_K7) eingelesen sowie deren Struktur dargestellt.
+```{r message = FALSE, warning = FALSE }
+Komponente_K7 <- read_csv2(Logistikverzug_path[1], col_names = TRUE, col_types = cols())
+str(Komponente_K7)
+```
+Die Strukturen auslesen, damit kann sie weiter geordnet werden
+
+```{r message = FALSE, warning = FALSE }
+Logistikverzug_K7 <- read_csv2(Logistikverzug_path[2], col_names = TRUE, col_types = cols())
+str(Logistikverzug_K7)
+```
+Die Strukturen auslesen, damit kann sie weiter geordnet werden
+
+Um sicherzustellen, dass alle Daten ohne Fehler eingelesen werden konnten, werden die beiden Datensätze auf NA´s überprüft.
+```{r message = FALSE, warning = FALSE }
+anyNA(Komponente_K7)
+anyNA(Logistikverzug_K7)
+```
+
+Bei der Analyse der beiden eingelesenen Datensätzen wird die selbe Anzahl an Elementen und Variabeln ersichtlich. Mit einem Fulljoin werden die Datensätze zusammengefügt. 
+```{r message = FALSE, warning = FALSE }
+Gesamt_Logistikjoin <- full_join(Komponente_K7,Logistikverzug_K7,by = "IDNummer")
+```
+
+Um sicherzustellen, dass alle Daten ohne Fehler eingelesen werden konnten, werden der neue Datensatz auf NA´s überprüft.
+```{r}
+str(Gesamt_Logistikjoin)
+anyNA(Gesamt_Logistikjoin)
+```
+
+Im Anschluss betrachten wir nur noch die relevanten Spalten und bennen Sie um.
+```{r message = FALSE, warning = FALSE }
+Logistikverzug <- select(Gesamt_Logistikjoin,X1.x,IDNummer,Produktionsdatum,Wareneingang)
+colnames(Logistikverzug) <- c( "X","IDNummer", "Produktionsdatum", "Wareneingang")
+```
+
+Weiter wird ein einheitliches Datumsformat verwendet. 
+```{r message = FALSE, warning = FALSE }
+Logistikverzug$Produktionsdatum = as.Date(Logistikverzug$Produktionsdatum, "%Y-%m-%d")
+Logistikverzug$Wareneingang = as.Date(Logistikverzug$Wareneingang, "%d.%m.%Y")
+```
+
+Um den Logistikverzug zu bestimmen, wird eine neue Zeile erstellt, die aus der Differenz zwischen Wareneingang und Produktionsdatum besteht.
+```{r message = FALSE, warning = FALSE }
+Logistikverzug <- mutate(Logistikverzug, Verzug = round(as.double (Wareneingang - Produktionsdatum),0))
+```
+
+***
+
+#### Aufgabe a und d
+*Wie ist der Logistikverzug verteilt? Begründen Sie Ihre Auswahl und stellen Sie Ihre Vorgehensweise kurz dar*
+*Stellen Sie die Verteilung in geeigneter Weise dar.*
+
+Die Zahlen je nach Logistikverzug lässt sich mithilfe eines Balkendiagramms darstellen:
+```{r message = FALSE, warning = FALSE }
+ggplot(Logistikverzug, aes(x = Verzug)) +
+  theme_bw() +
+  geom_histogram(binwidth = 0.5, colour = "white", fill = "cornflowerblue", size = 0.1) +
+  scale_x_continuous(breaks = seq(0, 15, 1)) + 
+  xlab("Logistikverzug(Tag/en)") +
+  ylab("Warenanzahl") +
+  geom_text(aes(label=as.character(..count..)),stat="bin", binwidth = 1, vjust=-0.5) 
+```
+
+Die Verteilung des Logistikverzug wird in folgende Grafik gezeigt:
+```{r}
+m=mean(Logistikverzug$Verzug) #5.080437
+sd=sd(Logistikverzug$Verzug) #1.012302
+
+ggplot(Logistikverzug) + 
+  geom_histogram(aes(x = Verzug, y = ..density..),fill = "cornsilk", colour = "grey60",binwidth = 1) +
+  geom_density(aes(colour="Real logistics delay distributed",x = Verzug, y = ..density..),adjust = 6,lwd=1) +
+  stat_function(aes(colour="Normal distribution N(m,sd)"),fun = dnorm, args = list(m, sd), lwd=1)+
+  scale_colour_manual("Groups", values = c("red", "blue"))+
+  scale_x_continuous(breaks = seq(0, 15, 1)) + 
+  ggtitle("Wahrscheinlichkeitverteilung") +
+  xlab("Logistikverzug(Tag/en)") +
+  ylab("Wahrscheinlichkeit")
+```
+
+Man sieht auf an dem Balkendiagramm schon sehr gut, dass der Logistikverzug normalverteilt ist. Dies wird durch die Darstellung des "Real logistics delay distributed" und der "Normal distribution" nochmal verdeutlicht.
+Am wahrscheinlichsten ist mit ca. 40% ein Logistikverzug von 5 Tagen, gefolgt von 4 Tagen mit ca. 26%. Dass es zu einem Logistikverzug von mehr als 9 Tagen kommt ist sehr unwahrscheinlich.
+
+
+
+***
+
+#### Aufgabe b
+*Wie viel Zeit vergeht mindestens/höchstens zwischen Warenausgang und Wareneingang?*
+
+Zwischen Warenausgang und Wareneingang vergehen mindestens 2 Tage und maximal 13 Tage.
+```{r message = FALSE, warning = FALSE }
+Minimal_Logistikverzug <- min(Logistikverzug$Verzug)
+Minimal_Logistikverzug
+Maximal_Logistikverzug <- max(Logistikverzug$Verzug)
+Maximal_Logistikverzug
+```
+
+***
+
+#### Aufgabe c
+*Bestimmen Sie den Mittelwert des Logistikverzugs.*
+
+Der Mittelwert des Logistikverzgs beträgt 5.08 Tage  
+```{r message = FALSE, warning = FALSE }
+Durchschnitt_Logistikverzug <- mean(Logistikverzug$Verzug)
+Durchschnitt_Logistikverzug
+```
+
+***
+
+## Aufgabe 2
+*Warum ist es sinnvoll, die Ihnen bereitgestellten Daten in separaten Dateien abzulegen und nicht alles in einer riesigen Tabelle abzuspeichern? Wie nennt sich das zugrunde liegende Datenbankkonzept?*
+
+Eine riesige Tabelle, wie jene die wir durch das zusammen abspeichern der bereitgestellten Daten erhalten würden, bieten einige Nachteile. Die Leistung eines Datenbanksystems wäre,genauso wie die Datensicherung aufgrund der Größe der Datei stark eingeschränkt. Auch würde bei einer einzigen Tabelle ein Fehler ggf. genügen um den gesamten Datensatz unbrauchbar zu machen. Für den Nutzer, der auf diese Datenbank zugreifen wollen würde, bringt dies eine starke Beeinträchtigung in der User Experience mit sich, da sich sowohl die Zugriffszeiten als auch die Verfügbarkeit aus Nutzersicht verschlechtern.
+Darum ist es sinnvoll die bereitgestellten Daten in seperaten Dateien abzulegen unter Nutzung des Datenbankkonzeptes der Partionierung. Bei der Partionierung wird der Datensatz in viele kleinere Datensätze aufgeteilt und über Teilrelationen miteinander verknüpft. Die Größe der einzelnen Dateien wird dadurch enorm reduziert, gleichzeitig nimmt logischerweise die Anzahl der Dateien zu. Bei der Aufteilung des Datensatzes sollte man eine disjunkte Aufteilung als Ziel haben um Redundanzen zu reduzieren.
+Unter zur Hilfenahme effizienter Ausführungsstrategien kann man so einen Zugriff auf die Gesamtdatenmenge vermeiden und greift immer nur auf die für die jeweilige Anfrage benötigten Teildatenmengen zu. Hierdurch lässt sich die Leistungsfähigkeit des Systems und in Folge dessen auch die Zugriffsgeschwindigkeit, sowie die generelle Verfügbarkeit erhöhen.
+Gleichzeitig entsteht durch die Partionierung allerdings auch eine höherer Komplexitität im Bereich der Administration der Datenbank, sowie der Datensicherung. Vor allem dann wenn der Datensatz ständigen Veränderungen unterzogen wird, ist es notwendig dass der Datensatz mit Vorraussicht aufgeteilt und betreut wird. Beachtet man diese Besonderheiten nicht, kann die Partionierung sich auch negativ auf Leistung und Verfügbarkeit des Datensatzes auswirken.
+
+***
+
+## Aufgabe 3
+*Wie viele der Komponenten K7 landeten in Fahrzeugen, die in Dortmund zugelassen wurden?*
+
+Pfade setzen.
+```{r}
+Fahrzeug_file <- list.files(path = "Data/Fahrzeug/")
+Fahrzeug_path <- file.path("Data/Fahrzeug", Fahrzeug_file)
+
+Zulassungen_file <- list.files(path = "Data/Zulassungen/")
+Zulassungen_path <- file.path("Data/Zulassungen", Zulassungen_file)
+```
+
+Laden des Datensatzes "Bestandteile_Fahrzeuge_OEM2_Typ22.csv", da nur in den Fahrzeugen des Typs 22 die Komponenete K7 verbaut ist. Zum Laden verwenden wir read_csv2(), da die Einträge durch Semikola getrennt sind.
+```{r message = FALSE, warning = FALSE }
+Bestandteile_Fahrzeuge_OEM2_Typ22 <- read_csv2(Fahrzeug_path[4], col_names = TRUE, col_types = cols())
+```
+
+Laden des Datensatzes "Zulassungen_alle_Fahrzeuge.csv", da dieser die Gemeinden der Zulassungen zu den jeweiligen Fahrzeugen enthält. Zum Laden verwenden wir hier wieder read_csv2(), da auch diese Einträge durch Semikola getrennt sind.
+```{r message = FALSE, warning = FALSE }
+Zulassungen_alle_Fahrzeuge <- read_csv2(Zulassungen_path[1], col_names = TRUE, col_types = cols())
+```
+
+Analyse der Struktur der beiden Datensätze:
+```{r message = FALSE, warning = FALSE }
+str(Bestandteile_Fahrzeuge_OEM2_Typ22)
+str(Zulassungen_alle_Fahrzeuge)
+```
+
+Im Datensatz Zulassungen_alle_Fahrzeuge ist die ID des Fahrzeuges in der Spalte IDNummer dargestellt. Dagegen ist sie im Datensatz ID_K7 in der Spalte ID_Fahrzeug zu finden. Zur Vereintheitlichung wird IDNummer in Zulassungen_alle_Fahrzeuge durch rename() in ID_Fahrzeug umbennant.
+```{r message = FALSE, warning = FALSE }
+Zulassungen_alle_Fahrzeuge_New <- rename(Zulassungen_alle_Fahrzeuge, "ID_Fahrzeug" = "IDNummer")
+```
+
+Zusammenführen der beiden Datensätze über die Fahrzeug ID mit Hilfe von inner_join():
+```{r message = FALSE, warning = FALSE }
+Gesamt_ID <- inner_join(Zulassungen_alle_Fahrzeuge_New, Bestandteile_Fahrzeuge_OEM2_Typ22, by = "ID_Fahrzeug")
+```
+
+Neuer Datensatz enthält nur noch Daten der Fahrzeuge vom Typ 22, bei denen K7 eingebaut ist, daher wird nun die Anzahl der in Dortmund zugelassenen Fahrzeuge davon gezählt.
+```{r message = FALSE, warning = FALSE }
+ID_K7 <- table(Gesamt_ID$Gemeinden)
+ID_K7[names(ID_K7) == "DORTMUND"]
+```
+
+In den in Dortmund zugelassenen Fahrzeugen landeten 5275 Komponenten K7.
+
+***
+
+## Aufgabe 4
+*Welche Datentypen haben die Attribute der Zulassungstabelle* „Zulassungen_aller_Fahrzeuge“*?*
+
+Analysieren der Struktur des Datensatzes:
+```{r message = FALSE, warning = FALSE }
+str(Zulassungen_alle_Fahrzeuge)
+```
+Die Zulassungstabelle enthält vier Spalten mit den Variablen "X1", "IDNummer", "Gemeinden" und "Zulassung"
+
+* X1: X1 stellt eine einfache Nummerierung der Zeilen der Tabelle dar. Diese ist als double gespeichert.
+
+* IDNummer: Die IDNummer der Fahrzeuge ist durch einen Code aus Zahlen und Bindestrichen dargestellt. Da die relevante Information hier allerdings die Folge der aufeinanderfolgenden verschiedenen Zeichen darstellt, ist dies als character gespeichert.
+
+* Gemeinden: Die Gemeinden sind in Großbuchstaben ausgeschrieben. Relevant für die korrekte Informationsentnahme ist somit die Folge aufeinenderfolgender Zeichen. Auch diese Variable ist als character gespeichert.
+
+* Zulassung: Die Variable Zulassung kennzeichnet das Zulassungsdatum. Dargestellt durch die Struktur %Y-%m-%d lassen sich somit die Daten miteinander vergleichen. Diese Variable ist als date gespeichert.
+***
+
+## Aufgabe 5
+*Sie wollen Ihre Applikation veröffentlichen. Warum ist es gerade dann sinnvoll die Datensätze auf der Datenbank eines Servers abzulegen? Warum können Sie die Datensätze nicht auf Ihrem persönlichen Computer ablegen?*
+
+Grundsätzlich können wir eine Shiny App auf zwei verschiedene Arten veröffentlichen. Entweder schicken wir dem jeweiligen Nutzer ein R Markdown Document bzw. stellen es zum Download bereit, oder wir veröffentlichen unserer App als Website. 
+Da die Veröffentlichung as R Markdown Document für den Endbenutzer bedeutet, dass dieser eine laufende R Session auf seinem Computer haben muss und dann das R Markdown Document manuell ausführen muss. Zusätzlich benötigt der Nutzer auch die Datensätze auf seinem Computer, oder zumindest Zugriff auf selbige. Diese Variante ist sehr unhandlich und erfordert einiges an Fachwissen.
+
+Wenn wir App veröffentlichen wollen, dann soll diese auch für Nutzer gedacht sein, die R nicht auf ihrem Computer installiert haben und sich damit auch nicht wirklich auskennen. Darum ist es deutlich sinnvoller unserer App im Rahmen einer Website zu veröffentlichen. Dadurch wird die Shiny App nicht auf dem PC des Nutzers ausgeführt. Stattdessen läuft die dazugehörige R Session auf einem Server. Dieser Server benötigt zum richtigen Ausführen der App auch die dafür verwendeten Datensätze. Aus diesem Grund ist es sinnvoll die Datensätze ebenfalls auf dem Server zu hinterlegen.
+
+Theoretisch kann man natürlich auch einen persönlichen Computer als Server einrichten und die R Session darüber laufen lassen und dann dementsprechend auch die Datensätze dort hinterlegen. Dies würde jedoch einige Nachteile gegenüber einem "richtigen" Server mit sich bringen. Um die Website konstant erreichbar zu machen, müsste der Rechner 24/7 laufen und auch der Belastung bei hohen Zugriffsraten dauerhaft standhalten um eine gute Performance der Seite zu garantieren. Beides ist mit einem durchschnittlichen PC eher nicht gut umzusetzen. Ein weiteres Problem stellt der Mehrbenutzerbetrieb da. Für die Nutzung mehrerer Personen gleichzeitig nutzen Serverdatenbanken bestimmte Methoden im Zugriffsmanagement um eine sichere Benuzung und Bearbeitung der Daten zu gewährleisten. Ein PC kann dies nur deutlich schlechter umsetzen als ein Server.
+
+
+***
+
+## Aufgabe 6
+*Am 11.08.2010 hat es einen Unfall mit einem Fahrzeug des OEM gegeben. Von dem Kennzeichen des Unfallwagens fehlt jede Spur. Die Polizei bittet Sie um Hilfe, da Sie für das Kraftfahrtbundesamt arbeiten und fragt, wo das Fahrzeug mit der Motorkennziffer „K1BE2-104-1041-32050“ (entspricht der Motor-ID-Nummer) zugelassen wurde.*
+
+Aus der Motor-ID lässt sich erkennen, dass Motoren der Klasse K1BE2 nur in Fahrzeugen des Typs 21 oder Typ 22 vom OEM 2 verbaut werden. Daher muss noch der Datensatz "Bestandteile_Fahrzeuge_OEM2_Typ22.csv" geladen werden. Dabei wird erneut read_csv2() genutzt, da die Einträge durch Semikola getrennt sind.
+```{r message = FALSE, warning = FALSE }
+Bestandteile_Fahrzeuge_OEM2_Typ21 <- read_csv2(Fahrzeug_path[3], col_names = TRUE, col_types = cols())
+```
+
+Bevor die Datensätze "Bestandteile_Fahrzeuge_OEM2_Typ21.csv" und "Zulassungen_alle_Fahrzeuge.csv" gejoint werden können, wird die Struktur der beiden Datensätze geprüft:
+```{r message = FALSE, warning = FALSE }
+str(Bestandteile_Fahrzeuge_OEM2_Typ21)
+str(Bestandteile_Fahrzeuge_OEM2_Typ22)
+```
+
+Die Datensätze werden durch `ID_Motor` gefiltert, um das Unfallauto zu finden.
+```{r message = FALSE, warning = FALSE }
+Gesucht_ID1 <- filter(Bestandteile_Fahrzeuge_OEM2_Typ21, ID_Motor == "K1BE2-104-1041-32050")
+Gesucht_ID2 <- filter(Bestandteile_Fahrzeuge_OEM2_Typ22, ID_Motor == "K1BE2-104-1041-32050")
+str(Gesucht_ID1)
+str(Gesucht_ID2)
+```
+Das Unfallauto gehört zu OME2_Typ21.
+
+Der Fahrzeug wird in Datensaetze `Zulassungen` durch `ID_Fahrzeug` durchgesucht.
+```{r message = FALSE, warning = FALSE }
+Unfall_ID <- merge(Zulassungen_alle_Fahrzeuge_New, Gesucht_ID1, by = "ID_Fahrzeug")
+Unfall_ID[names(Unfall_ID) == "Gemeinden"]
+```
+Das in den Unfall verwickelte Fahrzeug ist in Leipzig zugelassen worden.
+
+```{r}
+dir.create("General_Tasks_Group_28_files")
+```
